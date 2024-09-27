@@ -19,6 +19,13 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+    App\Service\OpenAIClient:
+        arguments:
+            $apiKey: '%env(OPENAI_API_KEY)%'
+            $assistantId: '%env(ASSISTANT_ID)%'
+    App\Controller\:
+        resource: '../src/Controller'
+        tags: ['controller.service_arguments']
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

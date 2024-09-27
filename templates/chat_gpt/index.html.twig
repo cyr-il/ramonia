@@ -1,0 +1,66 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Chat with Assistant{% endblock %}
+
+{% block body %}
+    <h1>Chat with the Assistant</h1>
+
+    <div id="chat-container" class="card p-3">
+        <div id="chat-history" class="mb-3" style="height: 400px; overflow-y: scroll;">
+            <!-- Les messages seront injectés ici -->
+        </div>
+
+        {{ form_start(form, {'attr': {'id': 'chat-form'}}) }}
+            <div class="input-group">
+                {{ form_widget(form.message, {'attr': {'class': 'form-control', 'placeholder': 'Posez votre question...'}}) }}
+                <button class="btn btn-primary" type="submit">Envoyer</button>
+            </div>
+        {{ form_end(form) }}
+    </div>
+
+    <script src="https://js.pusher.com/7.0/pusher.min.js"></script>
+    <script>
+        var pusher = new Pusher('0a184a71da994075bdcd', {
+            cluster: 'eu'
+        });
+
+        var channel = pusher.subscribe('chat-channel');
+        channel.bind('new-message', function(data) {
+            var chatHistory = document.getElementById('chat-history');
+            
+            // Ajoute la question de l'utilisateur
+            var userMessage = document.createElement('div');
+            userMessage.classList.add('alert', 'alert-secondary');
+            userMessage.innerHTML = '<strong>Vous :</strong> ' + data.message;
+            chatHistory.appendChild(userMessage);
+            
+            // Ajoute la réponse de l'assistant
+            var assistantMessage = document.createElement('div');
+            assistantMessage.classList.add('alert', 'alert-primary');
+            assistantMessage.innerHTML = '<strong>Assistant :</strong> ' + data.response;
+            chatHistory.appendChild(assistantMessage);
+
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        });
+
+        // Soumission du formulaire via AJAX
+        document.getElementById('chat-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            var formData = new FormData(this);
+            fetch('{{ path('send_message') }}', {
+                method: 'POST',
+                body: formData
+            }).then(response => response.json()).then(data => {
+                // Affiche le message côté client
+                console.log('Message et réponse envoyés');
+            });
+        });
+    </script>
+{% endblock %}
+
+
+
+
+
+
+

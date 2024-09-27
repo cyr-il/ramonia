@@ -1,0 +1,29 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<div class="container mt-3">
+  <h1>Choisissez votre abonnement</h1>
+  <div class="card-group mt-3">
+    <div class="card">
+      <img src="{{asset('assets/img/mensual.jpeg')}}" style="width: 10%" class="card-img-top" alt="Abonnement Mensuel">
+      <div class="card-body">
+        <h5 class="card-title">Abonnement Mensuel</h5>
+        <p class="card-text">Profitez d'un abonnement mensuel avec un accès illimité à nos contenus personnalisés.</p>
+        <button type="button" class="btn btn-success">Achetez un abonnement mensuel</button>
+
+        <p class="card-text"><small class="text-body-secondary">Dernière mise à jour il y a 3 minutes</small></p>
+      </div>
+    </div>
+    <div class="card">
+      <img src="{{asset('assets/img/annual.jpeg')}}" style="width: 10%" class="card-img-top" alt="Abonnement Annuel">
+      <div class="card-body">
+        <h5 class="card-title">Abonnement Annuel</h5>
+        <p class="card-text">Souscrivez à un abonnement annuel et économisez davantage tout en accédant à nos services premium.</p>
+        <button type="button" class="btn btn-success">Achetez un abonnement annuel</button>
+
+        <p class="card-text"><small class="text-body-secondary">Dernière mise à jour il y a 3 minutes</small></p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
