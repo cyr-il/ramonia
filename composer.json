@@ -83,7 +83,7 @@
         "symfony": {
             "allow-contrib": false,
             "require": "7.1.*",
-            "docker": false
+            "docker": true
         }
     }
 }
