@@ -3,64 +3,71 @@
 {% block title %}Chat with Assistant{% endblock %}
 
 {% block body %}
-    <h1>Chat with the Assistant</h1>
+<div class="container mt-5">
+    <h1 class="mb-4">Chat with the Assistant</h1>
 
-    <div id="chat-container" class="card p-3">
-        <div id="chat-history" class="mb-3" style="height: 400px; overflow-y: scroll;">
-            <!-- Les messages seront injectés ici -->
-        </div>
-
-        {{ form_start(form, {'attr': {'id': 'chat-form'}}) }}
-            <div class="input-group">
-                {{ form_widget(form.message, {'attr': {'class': 'form-control', 'placeholder': 'Posez votre question...'}}) }}
-                <button class="btn btn-primary" type="submit">Envoyer</button>
+    <div id="chat-history" class="card mb-4" style="height: 400px; overflow-y: auto;">
+        <div class="card-body">
+            {% if question is defined and question is not null %}
+            <div class="d-flex justify-content-end mb-3">
+                <div class="message-bubble bg-primary text-white p-2 rounded-3 mw-75">
+                    {{ question }}
+                </div>
             </div>
-        {{ form_end(form) }}
+            {% endif %}
+
+            {% if response is defined and response is not null %}
+            <div class="d-flex justify-content-start mb-3">
+                <div class="message-bubble bg-light p-2 rounded-3 mw-75">
+                    {{ response }}
+                </div>
+            </div>
+            {% endif %}
+
+            {{ form_start(form, {'attr': {'id': 'chat-form', 'class': 'mt-3'}, 'action': path('ask_assistant')}) }}
+                <div class="input-group">
+                    {{ form_widget(form.message, {'attr': {'class': 'form-control', 'placeholder': 'Tapez votre message...'}}) }}
+                    <button type="submit" class="btn btn-primary">Envoyer</button>
+                </div>
+            {{ form_end(form) }}
+        </div>
     </div>
-
-    <script src="https://js.pusher.com/7.0/pusher.min.js"></script>
-    <script>
-        var pusher = new Pusher('0a184a71da994075bdcd', {
-            cluster: 'eu'
-        });
-
-        var channel = pusher.subscribe('chat-channel');
-        channel.bind('new-message', function(data) {
-            var chatHistory = document.getElementById('chat-history');
-            
-            // Ajoute la question de l'utilisateur
-            var userMessage = document.createElement('div');
-            userMessage.classList.add('alert', 'alert-secondary');
-            userMessage.innerHTML = '<strong>Vous :</strong> ' + data.message;
-            chatHistory.appendChild(userMessage);
-            
-            // Ajoute la réponse de l'assistant
-            var assistantMessage = document.createElement('div');
-            assistantMessage.classList.add('alert', 'alert-primary');
-            assistantMessage.innerHTML = '<strong>Assistant :</strong> ' + data.response;
-            chatHistory.appendChild(assistantMessage);
-
-            chatHistory.scrollTop = chatHistory.scrollHeight;
-        });
-
-        // Soumission du formulaire via AJAX
-        document.getElementById('chat-form').addEventListener('submit', function(event) {
-            event.preventDefault();
-            var formData = new FormData(this);
-            fetch('{{ path('send_message') }}', {
-                method: 'POST',
-                body: formData
-            }).then(response => response.json()).then(data => {
-                // Affiche le message côté client
-                console.log('Message et réponse envoyés');
-            });
-        });
-    </script>
+</div>
 {% endblock %}
+{% block javascripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+    $(document).on('submit', '#chat-form', function(e) {
+        e.preventDefault();
+
+        $.ajax({
+            type: 'POST',
+            url: '/chat/send',
+            data: $(this).serialize(),
+            success: function(response) {
+                // Afficher la question de l'utilisateur
+                let questionHtml = '<div class="d-flex justify-content-end mb-3">' +
+                    '<div class="message-bubble bg-primary text-white p-2 rounded-3 mw-75">' +
+                    response.question + '</div></div>';
+                $('#chat-history .card-body').append(questionHtml);
+
+                // Afficher la réponse de GPT
+                let responseHtml = '<div class="d-flex justify-content-start mb-3">' +
+                    '<div class="message-bubble bg-light p-2 rounded-3 mw-75">' +
+                    response.response + '</div></div>';  // Assure que c'est bien la réponse qui est affichée
+                $('#chat-history .card-body').append(responseHtml);
+
+                // Scroll vers le bas pour afficher le dernier message
+                $('#chat-history').scrollTop($('#chat-history')[0].scrollHeight);
+
+                // Réinitialiser le champ de texte
+                $('#chat-form input[type="text"]').val('');
+            }
+        });
+    });
+});
 
 
 
-
-
-
-
+</script>
+{% endblock %}

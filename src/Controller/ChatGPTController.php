@@ -4,53 +4,107 @@ namespace App\Controller;
 
 use App\Form\ChatFormType;
 use App\Service\OpenAIClient;
-use Pusher\Pusher;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Psr\Log\LoggerInterface;  // Ajoute cette ligne pour le logger
+
 
 class ChatGPTController extends AbstractController
 {
-    private $pusher;
     private $openAIClient;
+    private $logger;
 
-    public function __construct(Pusher $pusher, OpenAIClient $openAIClient)
+    public function __construct(OpenAIClient $openAIClient, LoggerInterface $logger)
     {
-        $this->pusher = $pusher;
         $this->openAIClient = $openAIClient;
+        $this->logger = $logger;
     }
 
-    #[Route('/chat', name: 'send_message')]
-    public function sendMessage(Request $request): JsonResponse
+    // Route pour afficher la page de chat
+    #[Route('/chat', name: 'chat_index', methods: ['GET'])]
+    public function index(): Response
     {
-        // Handle form submission and OpenAI request
+        $form = $this->createForm(ChatFormType::class);
+        return $this->render('chat_gpt/index.html.twig', [
+            'form' => $form->createView(),
+        ]);
+    }
+
+    // Route pour envoyer la question et recevoir la réponse
+    #[Route('/chat/send', name: 'ask_assistant', methods: ['POST'])]
+    public function ask(Request $request): Response
+    {
         $form = $this->createForm(ChatFormType::class);
         $form->handleRequest($request);
+
+        $question = null;
+        $finalResponse = null;
 
         if ($form->isSubmitted() && $form->isValid()) {
             $data = $form->getData();
             $question = $data['message'];
 
-            // Step 1: Envoyer la question à OpenAI et récupérer la réponse
-            $thread = $this->openAIClient->createThread();
-            $this->openAIClient->addMessage($thread['id'], $question);
-            $response = $this->openAIClient->runAssistant($thread['id']);
-            $assistantResponse = $response['choices'][0]['message']['content'] ?? 'Aucune réponse disponible';
+            if ($question) {
+                // Créer le thread et ajouter la question
+                $thread = $this->openAIClient->createThread();
+                $this->openAIClient->addMessage($thread['id'], $question);
+                
+                // Log l'ID du thread créé
+                $this->logger->info('Thread créé : ' . $thread['id']);
 
-            // Step 2: Publier le message et la réponse via Pusher
-            $this->pusher->trigger('chat-channel', 'new-message', [
-                'message' => $question,
-                'response' => $assistantResponse
-            ]);
+                // Exécuter l'assistant
+                $run = $this->openAIClient->runAssistant($thread['id']);
 
-            return new JsonResponse([
-                'status' => 'Message et réponse envoyés',
-                'message' => $question,
-                'response' => $assistantResponse
+                // Attendre que l'assistant ait terminé de traiter
+                while ($run['status'] === 'queued') {
+                    sleep(2);
+                    $run = $this->openAIClient->getRunStatus($thread['id'], $run['id']);
+                }
+
+                // Log le statut final du run
+                $this->logger->info('Statut du run : ' . $run['status']);
+
+                // Si le processus est terminé, récupérer les messages
+                if ($run['status'] === 'completed') {
+                    $messages = $this->openAIClient->getAllMessages($thread['id']);
+
+                    // Log tous les messages retournés par OpenAI
+                    $this->logger->info('Messages OpenAI : ' . json_encode($messages));
+
+                    // Assurer la structure correcte pour récupérer la réponse finale de GPT
+                    if (!empty($messages['data'])) {
+                        $lastMessage = end($messages['data']);
+                        
+                        if (isset($lastMessage['content'][0]['text']['value'])) {
+                            $finalResponse = $lastMessage['content'][0]['text']['value'];
+                        } else {
+                            $finalResponse = "Pas de réponse trouvée dans les messages.";
+                        }
+
+                        // Log la réponse finale extraite
+                        $this->logger->info('Réponse extraite : ' . $finalResponse);
+                    } else {
+                        $finalResponse = "Aucun message retourné par l'assistant.";
+                    }
+                }
+            }
+        }
+
+        // Si la requête est AJAX, retourner le résultat sous forme de JSON
+        if ($request->isXmlHttpRequest()) {
+            return $this->json([
+                'question' => $question,
+                'response' => $finalResponse,  // Retourne bien la réponse ici
             ]);
         }
 
-        return new JsonResponse(['status' => 'Erreur dans le formulaire']);
+        // Sinon, rendre la vue Twig
+        return $this->render('chat_gpt/index.html.twig', [
+            'question' => $question,
+            'response' => $finalResponse,
+            'form' => $this->createForm(ChatFormType::class)->createView(),
+        ]);
     }
 }
