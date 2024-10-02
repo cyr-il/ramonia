@@ -16,10 +16,8 @@ class ChatFormType extends AbstractType
             ->add('message', TextType::class, [
                 'label' => 'Your Message',
                 'attr' => ['placeholder' => 'Enter your message...'],
-            ])
-            ->add('submit', SubmitType::class, [
-                'label' => 'Send',
             ]);
+
     }
 
     public function configureOptions(OptionsResolver $resolver): void
